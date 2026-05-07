@@ -14,15 +14,15 @@ from sklearn.metrics import mean_absolute_error
 from xgboost import XGBRegressor
 import warnings
 warnings.filterwarnings('ignore')
-
+ 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
-
+ 
 MODEL_PATH = 'model.pkl'
 DB_PATH = 'colorai.db'
 CSV_PATH = 'training_data.csv'
 training_status = {'status': 'idle', 'message': '尚未訓練', 'progress': 0}
-
+ 
 def build_features(L_arr, a_arr, b_arr, luster_arr):
     L=np.array(L_arr,dtype=float); a=np.array(a_arr,dtype=float)
     b=np.array(b_arr,dtype=float); luster=np.array(luster_arr,dtype=float)
@@ -35,12 +35,12 @@ def build_features(L_arr, a_arr, b_arr, luster_arr):
            (L>40).astype(float),(L<30).astype(float),
            (luster>70).astype(float),(luster>40).astype(float),(luster<20).astype(float)]
     return np.column_stack(feats)
-
+ 
 def load_model():
     if os.path.exists(MODEL_PATH):
         return pickle.load(open(MODEL_PATH,'rb'))
     return None
-
+ 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -52,9 +52,9 @@ def init_db():
         delta_e REAL, formula_json TEXT, note TEXT
     )''')
     conn.commit(); conn.close()
-
+ 
 init_db()
-
+ 
 def delta_e_2000(L1,a1,b1,L2,a2,b2):
     C1=np.sqrt(a1**2+b1**2); C2=np.sqrt(a2**2+b2**2)
     Cavg=(C1+C2)/2; C7=Cavg**7
@@ -74,7 +74,7 @@ def delta_e_2000(L1,a1,b1,L2,a2,b2):
     Cp7=Cp**7; RC=2*np.sqrt(Cp7/(Cp7+25**7))
     dt=30*np.exp(-((hp-275)/25)**2); RT=-np.sin(np.radians(2*dt))*RC
     return float(np.sqrt((dLp/SL)**2+(dCp/SC)**2+(dHp/SH)**2+RT*(dCp/SC)*(dHp/SH)))
-
+ 
 @app.route('/api/predict', methods=['POST'])
 def predict():
     try:
@@ -93,7 +93,7 @@ def predict():
         return jsonify({'success':True,'formula':formula,'target':{'L':L,'a':a,'b':b,'luster':luster}})
     except Exception as e:
         return jsonify({'error':str(e)}),500
-
+ 
 @app.route('/api/feedback', methods=['POST'])
 def feedback():
     try:
@@ -115,7 +115,7 @@ def feedback():
         return jsonify({'success':True,'delta_e':round(dE,3),'total_feedback':count})
     except Exception as e:
         return jsonify({'error':str(e)}),500
-
+ 
 @app.route('/api/history', methods=['GET'])
 def history():
     try:
@@ -131,20 +131,20 @@ def history():
         return jsonify({'success':True,'records':records})
     except Exception as e:
         return jsonify({'error':str(e)}),500
-
+ 
 @app.route('/api/training/status', methods=['GET'])
 def get_training_status():
     conn=sqlite3.connect(DB_PATH); c=conn.cursor()
     count=c.execute('SELECT COUNT(*) FROM feedback').fetchone()[0]
     conn.close()
     return jsonify({**training_status,'feedback_count':count})
-
+ 
 @app.route('/api/training/start', methods=['POST'])
 def start_training():
     global training_status
     if training_status['status']=='running':
         return jsonify({'error':'訓練中，請稍候'}),400
-
+ 
     def run_training():
         global training_status
         try:
@@ -188,10 +188,10 @@ def start_training():
             training_status={'status':'done','message':f'✅ 完成！{len(df)} 筆資料，平均誤差 ±{mae:.3f}%','progress':100}
         except Exception as e:
             training_status={'status':'error','message':f'❌ 失敗：{str(e)}','progress':0}
-
+ 
     threading.Thread(target=run_training,daemon=True).start()
     return jsonify({'success':True,'message':'訓練已開始'})
-
+ 
 @app.route('/api/stats', methods=['GET'])
 def stats():
     try:
@@ -207,10 +207,14 @@ def stats():
                        'good_rate':round(good/count*100,1) if count>0 else None})
     except Exception as e:
         return jsonify({'error':str(e)}),500
-
-@app.route('/')
-def index():
-    return app.send_static_file('index.html')
+ 
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    if path and os.path.exists(os.path.join('static', path)):
+        return send_from_directory('static', path)
+    return send_from_directory('static', 'index.html')
+ 
 if __name__=='__main__':
     port=int(os.environ.get('PORT',5000))
     app.run(host='0.0.0.0',port=port,debug=False)
