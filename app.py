@@ -15,7 +15,7 @@ from xgboost import XGBRegressor
 import warnings
 warnings.filterwarnings('ignore')
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 
 MODEL_PATH = 'model.pkl'
@@ -210,8 +210,7 @@ def stats():
 
 @app.route('/')
 def index():
-    return send_from_directory('static','index.html')
-
+    return app.send_static_file('index.html')
 if __name__=='__main__':
     port=int(os.environ.get('PORT',5000))
     app.run(host='0.0.0.0',port=port,debug=False)
