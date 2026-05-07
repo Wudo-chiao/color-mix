@@ -210,8 +210,8 @@ def stats():
  
 @app.route('/')
 def index():
-    here = os.path.dirname(os.path.abspath(__file__))
-    return send_from_directory(os.path.join(here, 'static'), 'index.html')
+    with open(os.path.join(os.path.dirname(__file__), 'static', 'index.html'), 'r', encoding='utf-8') as f:
+        return f.read()
  
 if __name__=='__main__':
     port=int(os.environ.get('PORT',5000))
