@@ -646,7 +646,7 @@ function updatePreview(){
   document.getElementById('swatch').style.background=lab2rgb(L,a,b);
   document.getElementById('gloss-overlay').style.opacity=isNaN(luster)?0.3:Math.min(luster/91,1)*0.55;
   document.getElementById('preview-lab').innerHTML=`L* <span style="color:#1a1a1a;font-weight:500">${L.toFixed(1)}</span>　a* <span style="color:#1a1a1a;font-weight:500">${a.toFixed(1)}</span>　b* <span style="color:#1a1a1a;font-weight:500">${b.toFixed(1)}</span>`;
-  document.getElementById('preview-luster').textContent=`光澤：${isNaN(luster)?'—':luster+' ('+（luster>70?'高光':luster>30?'半光':'消光')+')'}`; 
+  document.getElementById('preview-luster').textContent=`光澤：${isNaN(luster)?'—':luster+' ('+(luster>70?'高光':luster>30?'半光':'消光')+')'}`; 
   document.getElementById('preview-desc').textContent=descColor(L,a,b,isNaN(luster)?50:luster);
 }
  
