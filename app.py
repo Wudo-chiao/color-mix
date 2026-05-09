@@ -39,7 +39,47 @@ def build_features(L_arr, a_arr, b_arr, luster_arr):
 def load_model():
     if os.path.exists(MODEL_PATH):
         return pickle.load(open(MODEL_PATH,'rb'))
+    # 找不到模型就自動訓練
+    if os.path.exists(CSV_PATH):
+        auto_train()
+        if os.path.exists(MODEL_PATH):
+            return pickle.load(open(MODEL_PATH,'rb'))
     return None
+ 
+def auto_train():
+    try:
+        from sklearn.model_selection import train_test_split
+        df = pd.read_csv(CSV_PATH)
+        pigment_cols = ['5000-6900','5000-6909','5000-6906','5000-6941',
+                        '5000-6900N','5000-6937','5000-6912','5000-6926',
+                        '5000-6930','5000-6903','5000-6911','5000-6916',
+                        '5000-6905','5000-6914','P0502','P0508','P0509',
+                        'P0604','M7001','M7005','TH-6980']
+        pigments = [c for c in pigment_cols if c in df.columns]
+        X = build_features(df['Target_L'].values, df['Target_a'].values,
+                           df['Target_b'].values, df['Target_luster'].values)
+        y = df[pigments].values
+        X_train, _, y_train, _ = train_test_split(X, y, test_size=0.15, random_state=42)
+        xgb_models = []
+        for i, col in enumerate(pigments):
+            y_col = y_train[:, i]
+            hv = (y_col > 0.01).mean()
+            if hv > 0.5:
+                params = dict(n_estimators=300, max_depth=8, learning_rate=0.05,
+                             subsample=0.8, colsample_bytree=0.8, min_child_weight=3)
+            else:
+                params = dict(n_estimators=200, max_depth=6, learning_rate=0.05,
+                             subsample=0.8, colsample_bytree=0.8, min_child_weight=5)
+            m = XGBRegressor(**params, random_state=42, verbosity=0)
+            m.fit(X_train, y_col)
+            xgb_models.append(m)
+        rf = RandomForestRegressor(n_estimators=300, max_depth=15, min_samples_leaf=2,
+                                   max_features=0.7, random_state=42, n_jobs=-1)
+        rf.fit(X_train, y_train)
+        pickle.dump({'rf': rf, 'xgb': xgb_models, 'pigments': pigments,
+                    'feature_count': X.shape[1]}, open(MODEL_PATH, 'wb'))
+    except Exception as e:
+        print(f"Auto training failed: {e}")
  
 def init_db():
     conn = sqlite3.connect(DB_PATH)
